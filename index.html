@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GAN using Tensorflow.js</title>
+</head>
+<body>
+    <div id="canvas-wrapper" width="256" height="256">
+    <canvas id="the_canvas" width="256" height="256">
+        Your browser does not support the canvas element.
+    </canvas>
+    </div>
+
+    <div class="input-field">
+        <select id="model-select">
+        </select>
+    </div>
+
+    <button id="generate-button"> Generate
+    </button>
+    <button class="waves-effect waves-light btn col s12 btn-large disabled" id="animate-button">Animate
+    </button>
+
+        <div>
+            <h5> Info </h5>
+            <p id="logging">
+            </p>
+        </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"> </script>
+<script src="./index.js"></script>
+</body>
+</html>
