@@ -139,7 +139,7 @@ class DCGAN{
         this.start_time = (new Date()).getTime();
         //await computing_generate_main(this., model_size, draw_multiplier, model_latent_dim);
         let model = await this.model_promise;
-        await computing_generate_main(model, model_size, draw_multiplier, model_latent_dim, inputElement);
+        await this.computing_generate_main(model, model_size, draw_multiplier, model_latent_dim, inputElement);
         let end_ms = (new Date()).getTime();
         return end_ms - this.start_time;
     }
@@ -154,4 +154,11 @@ class DCGAN{
         await tf.toPixels(y, inputElement);
     }
 
+}
+
+let canvas = document.getElementById('the_canvas');
+let dcgan = new DCGAN("dcgan64",cbb);
+
+function cbb(){
+    dcgan.generate(canvas, (result) =>{console.log(result)});
 }
