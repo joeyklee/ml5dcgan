@@ -20,7 +20,7 @@ function setup() {
 
 function generate() {
     
-    dcgan.generate((err, result) => {
+    dcgan.generate(canvas_element, (err, result) => {
         if (err) {
             console.log(err);
         }
