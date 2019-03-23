@@ -9,23 +9,24 @@ let all_model_info = {
         model_latent_dim: 128,
         draw_multiplier: 4,
         animate_frame: 200,
-    },
-    resnet128: {
-        description: 'ResNet, 128x128 (252 MB)',
-        model_url: "https://storage.googleapis.com/store.alantian.net/tfjs_gan/chainer-resent128-celebahq-128/tfjs_SmoothedGenerator_20000/model.json",
-        model_size: 128,
-        model_latent_dim: 128,
-        draw_multiplier: 2,
-        animate_frame: 10
-    },
-    resnet256: {
-        description: 'ResNet, 256x256 (252 MB)',
-        model_url: "https://storage.googleapis.com/store.alantian.net/tfjs_gan/chainer-resent256-celebahq-256/tfjs_SmoothedGenerator_40000/model.json",
-        model_size: 256,
-        model_latent_dim: 128,
-        draw_multiplier: 1,
-        animate_frame: 10
     }
+    // ,
+    // resnet128: {
+    //     description: 'ResNet, 128x128 (252 MB)',
+    //     model_url: "https://storage.googleapis.com/store.alantian.net/tfjs_gan/chainer-resent128-celebahq-128/tfjs_SmoothedGenerator_20000/model.json",
+    //     model_size: 128,
+    //     model_latent_dim: 128,
+    //     draw_multiplier: 2,
+    //     animate_frame: 10
+    // },
+    // resnet256: {
+    //     description: 'ResNet, 256x256 (252 MB)',
+    //     model_url: "https://storage.googleapis.com/store.alantian.net/tfjs_gan/chainer-resent256-celebahq-256/tfjs_SmoothedGenerator_40000/model.json",
+    //     model_size: 256,
+    //     model_latent_dim: 128,
+    //     draw_multiplier: 1,
+    //     animate_frame: 10
+    // }
 };
 let default_model_name = 'dcgan64';
 function image_enlarge(y, draw_multiplier) {
@@ -84,29 +85,17 @@ class DCGAN{
             description = model_info.description;
 
         computing_prep_canvas(model_size * draw_multiplier);
-        // ui_set_canvas_wrapper_size(model_size * draw_multiplier);
-        // ui_logging_set_text(`Setting up model ${description}...`);
+
 
         if (model_name in this.model_promise_cache) {
             this.model_promise = this.model_promise_cache[model_name];
-            // ui_logging_set_text(`Model "${description}" is ready.`);
             return this;
         } else {
-            // ui_generate_button_disable('Loading...');
-            // ui_animate_button_disable('Loading...');
-            // ui_logging_set_text(`Loading model "${description}"...`);
-            this.model_promise = await tf.loadModel(model_url);
+            this.model_promise = await tf.loadLayersModel(model_url);
             this.model_promise_cache[model_name] = this.model_promise;
             console.log("model setup!");
             console.log(this.model_promise_cache[model_name]);
             return this;
-            // this.model_promise.then((model) => {
-            //     return resolve_after_ms(model, ui_delay_before_tf_computing_ms);
-            // }).then((model) => {
-            //     ui_generate_button_enable();
-            //     ui_animate_button_enable();
-            //     ui_logging_set_text(`Model "${description}" is ready.`);
-            // });
         }
     }
 
@@ -121,44 +110,36 @@ class DCGAN{
             draw_multiplier = model_info.draw_multiplier;
 
         computing_prep_canvas(model_size * draw_multiplier);
-        // ui_logging_set_text('Generating image...');
-        // ui_generate_button_disable('Generating...');
-        // ui_animate_button_disable();
 
-        // this.model_promise.then((model) => {
-        //     return resolve_after_ms(model, ui_delay_before_tf_computing_ms);
-        // }).then((model) => {
-        //     this.start_ms = (new Date()).getTime();
-        //     return computing_generate_main(model, model_size, draw_multiplier, model_latent_dim);
-        // }).then((_) => {
-        //     let end_ms = (new Date()).getTime();
-        //     ui_generate_button_enable();
-        //     ui_animate_button_enable();
-        //     ui_logging_set_text(`Image generated. It took ${(end_ms - this.start_ms)} ms.`);
-        // });
         this.start_time = (new Date()).getTime();
         //await computing_generate_main(this., model_size, draw_multiplier, model_latent_dim);
         let model = await this.model_promise;
-        await this.computing_generate_main(model, model_size, draw_multiplier, model_latent_dim, inputElement);
+        let enlarged_image = await this.computing_generate_main(model, model_size, draw_multiplier, model_latent_dim, inputElement);
         let end_ms = (new Date()).getTime();
-        return end_ms - this.start_time;
+        // return end_ms - this.start_time;
+        return enlarged_image;
     }
 
     async computing_generate_main(model, size, draw_multiplier, latent_dim, inputElement) {
         const y = tf.tidy(() => {
             const z = tf.randomNormal([1, latent_dim]);
-            const y = model.predict(z).squeeze().transpose([1, 2, 0]).div(tf.scalar(2)).add(tf.scalar(0.5));
-            return image_enlarge(y, draw_multiplier);
+            const y = model.predict(z).squeeze().transpose([1, 2, 0]).div(tf.scalar(2)).add(tf.scalar(0.5))
 
+            return image_enlarge(y, draw_multiplier);
         });
-        await tf.toPixels(y, inputElement);
+        // await tf.browser.toPixels(y, inputElement);
+        return y;
     }
 
 }
 
 let canvas = document.getElementById('the_canvas');
-let dcgan = new DCGAN("dcgan64",cbb);
+let dcgan = new DCGAN("dcgan64",modelReady);
 
-function cbb(){
-    dcgan.generate(canvas, (result) =>{console.log(result)});
+function modelReady(){
+    dcgan.generate(canvas, (err, result) =>{
+        console.log(result);
+        result.array().then(array => console.log(array));
+        tf.browser.toPixels(result, canvas);
+    });
 }
