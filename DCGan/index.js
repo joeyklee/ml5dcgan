@@ -1,6 +1,8 @@
 // --------------------------------------------------------------------------------------------------------
 // Configuration
 // --------------------------------------------------------------------------------------------------------
+// import {rawToBlob} from "./p5Utils";
+
 let all_model_info = {
     dcgan64: {
         description: 'DCGAN, 64x64 (16 MB)',
@@ -65,6 +67,35 @@ function callCallback(promise, callback) {
     return promise;
 }
 
+// Converts a tf to DOM img
+const array3DToImage = (tensor) => {
+    const [imgHeight, imgWidth] = tensor.shape;
+    const data = tensor.dataSync();
+    const canvas = document.createElement('canvas');
+    canvas.width = imgWidth;
+    canvas.height = imgHeight;
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i < imgWidth * imgHeight; i += 1) {
+        const j = i * 4;
+        const k = i * 3;
+        imageData.data[j + 0] = Math.floor(256 * data[k + 0]);
+        imageData.data[j + 1] = Math.floor(256 * data[k + 1]);
+        imageData.data[j + 2] = Math.floor(256 * data[k + 2]);
+        imageData.data[j + 3] = 255;
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    // Create img HTML element from canvas
+    const dataUrl = canvas.toDataURL();
+    const outputImg = document.createElement('img');
+    outputImg.src = dataUrl;
+    outputImg.style.width = imgWidth;
+    outputImg.style.height = imgHeight;
+    return outputImg;
+};
+
 class DCGAN{
     constructor(model_name, ready_cb){
         this.model_promise_cache = {};
@@ -112,12 +143,52 @@ class DCGAN{
         computing_prep_canvas(model_size * draw_multiplier);
 
         this.start_time = (new Date()).getTime();
-        //await computing_generate_main(this., model_size, draw_multiplier, model_latent_dim);
         let model = await this.model_promise;
         let enlarged_image = await this.computing_generate_main(model, model_size, draw_multiplier, model_latent_dim, inputElement);
         let end_ms = (new Date()).getTime();
         // return end_ms - this.start_time;
-        return enlarged_image;
+
+
+        //get the raw data from tensor
+        let raw = await enlarged_image.data();
+
+        //get the blob from raw
+        const [imgHeight, imgWidth] = enlarged_image.shape;
+        let blob = await rawToBlob(raw, imgWidth, imgHeight);
+
+        //get the p5.Image object
+        let p5Image;
+        if(checkP5()){
+            //let blob = await rawToBlob(raw, imgWidth, imgHeight);
+            p5Image = await blobToP5Image(blob);
+
+            // const [imgHeight, imgWidth] = enlarged_image.shape;
+            // const data = enlarged_image.dataSync();
+            // p5Image = createImage(imgWidth ,imgHeight);
+            // p5Image.loadPixels();
+            //
+            // for (let i = 0; i < imgWidth * imgHeight; i += 1) {
+            //     const j = i * 4;
+            //     const k = i * 3;
+            //     p5Image.pixels[j + 0] = Math.floor(256 * data[k + 0]);
+            //     p5Image.pixels[j + 1] = Math.floor(256 * data[k + 1]);
+            //     p5Image.pixels[j + 2] = Math.floor(256 * data[k + 2]);
+            //     p5Image.pixels[j + 3] = 255;
+            // }
+            // p5Image.updatePixels();
+        }
+
+        //wrap up the final js result object
+        let result =  {};
+        result["blob"] = blob;
+        result["raw"] = raw;
+        result["tensor"] = enlarged_image;
+
+        if(checkP5()){
+            result["image"] = p5Image;
+        }
+
+        return result;
     }
 
     async computing_generate_main(model, size, draw_multiplier, latent_dim, inputElement) {
@@ -134,12 +205,16 @@ class DCGAN{
 }
 
 let canvas = document.getElementById('the_canvas');
-let dcgan = new DCGAN("dcgan64",modelReady);
+let dcgan = new DCGAN("dcgan64", modelReady);
+
 
 function modelReady(){
     dcgan.generate(canvas, (err, result) =>{
         console.log(result);
-        result.array().then(array => console.log(array));
-        tf.browser.toPixels(result, canvas);
+
+        let img = document.createElement("IMG");
+        img.src = 'data:image/bmp;base64,'+ Base64.encode(result.blob);
+        console.log(img);
+        document.body.appendChild(img);
     });
 }
