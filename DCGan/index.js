@@ -46,6 +46,8 @@ function computing_prep_canvas(size) {
     // We don't `return tf.image.resizeBilinear(v1, [size * draw_multiplier, size * draw_multiplier]);`
     // since that makes image blurred, which is not what we want.
     // So instead, we manually enlarge the image.
+    let canvasDiv = document.getElementById("canvas-wrapper");
+    canvasDiv.style.display = "none";
     let canvas = document.getElementById("the_canvas");
     let ctx = canvas.getContext("2d");
     ctx.canvas.width = size;
@@ -111,11 +113,11 @@ class DCGAN{
         let model_name = this.model_name;
         let model_info = all_model_info[model_name];
         let model_size = model_info.model_size,
-            model_url = model_info.model_url,
-            draw_multiplier = model_info.draw_multiplier,
-            description = model_info.description;
+            model_url = model_info.model_url;
+            // draw_multiplier = model_info.draw_multiplier,
+            // description = model_info.description;
 
-        computing_prep_canvas(model_size * draw_multiplier);
+        // computing_prep_canvas(model_size * draw_multiplier);
 
 
         if (model_name in this.model_promise_cache) {
@@ -150,7 +152,8 @@ class DCGAN{
 
 
         //get the raw data from tensor
-        let raw = await enlarged_image.data();
+        let raw = await tf.browser.toPixels(enlarged_image);
+        // console.log((enlarged_image.shape));
 
         //get the blob from raw
         const [imgHeight, imgWidth] = enlarged_image.shape;
@@ -194,15 +197,18 @@ class DCGAN{
     async computing_generate_main(model, size, draw_multiplier, latent_dim, inputElement) {
         const y = tf.tidy(() => {
             const z = tf.randomNormal([1, latent_dim]);
-            const y = model.predict(z).squeeze().transpose([1, 2, 0]).div(tf.scalar(2)).add(tf.scalar(0.5))
+            const y = model.predict(z).squeeze().transpose([1, 2, 0]).div(tf.scalar(2)).add(tf.scalar(0.5));
 
-            return image_enlarge(y, draw_multiplier);
+            // return image_enlarge(y, draw_multiplier);
+            return y;
         });
         // await tf.browser.toPixels(y, inputElement);
         return y;
     }
 
 }
+
+function setup(){}
 
 let canvas = document.getElementById('the_canvas');
 let dcgan = new DCGAN("dcgan64", modelReady);
@@ -213,8 +219,9 @@ function modelReady(){
         console.log(result);
 
         let img = document.createElement("IMG");
-        img.src = 'data:image/bmp;base64,'+ Base64.encode(result.blob);
-        console.log(img);
+        img.src = URL.createObjectURL(result.blob);
+        img.style = "width:256px; height:256px";
+        // console.log(img);
         document.body.appendChild(img);
     });
 }

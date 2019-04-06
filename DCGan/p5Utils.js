@@ -13,6 +13,8 @@ const checkP5 = () => {
 // Convert a bytes-array to a Blob Object
 const rawToBlob = async (raws, x, y) => {
     const canvas = document.createElement('canvas'); // Consider using offScreenCanvas when it is ready?
+    canvas.width = x;
+    canvas.height = y;
     const ctx = canvas.getContext('2d');
 
     const imgData = ctx.createImageData(x, y);
