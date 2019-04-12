@@ -9,8 +9,8 @@ let all_model_info = {
         model_url: "model/model.json",
         model_size: 64,
         model_latent_dim: 128,
-        draw_multiplier: 4,
-        animate_frame: 200,
+        //draw_multiplier: 4,
+        animate_frame: 200
     }
     // ,
     // resnet128: {
@@ -100,10 +100,10 @@ const array3DToImage = (tensor) => {
 
 class DCGAN{
     constructor(model_name, ready_cb){
-        this.model_promise_cache = {};
-        this.model_promise = null;
-        this.model_name = model_name;
+        this.model_cache = {};
         this.model = null;
+        this.model_name = model_name;
+        // this.model = null;
         this.start_time = null;
         this.canvas_to_draw = null;
         this.ready = callCallback(this.loadModel(), ready_cb);
@@ -112,51 +112,52 @@ class DCGAN{
     async loadModel() {
         let model_name = this.model_name;
         let model_info = all_model_info[model_name];
-        let model_size = model_info.model_size,
-            model_url = model_info.model_url;
+        let model_url = model_info.model_url;
+            // model_size = model_info.model_size,
+
             // draw_multiplier = model_info.draw_multiplier,
             // description = model_info.description;
 
         // computing_prep_canvas(model_size * draw_multiplier);
 
 
-        if (model_name in this.model_promise_cache) {
-            this.model_promise = this.model_promise_cache[model_name];
+        if (model_name in this.model_cache) {
+            this.model = this.model_cache[model_name];
             return this;
         } else {
-            this.model_promise = await tf.loadLayersModel(model_url);
-            this.model_promise_cache[model_name] = this.model_promise;
+            this.model = await tf.loadLayersModel(model_url);
+            this.model_cache[model_name] = this.model;
             console.log("model setup!");
-            console.log(this.model_promise_cache[model_name]);
+            console.log(this.model_cache[model_name]);
             return this;
         }
     }
 
-    async generate(inputElement, cb){
-        return callCallback(this.generate_internal(inputElement), cb);
+    async generate(cb){
+        return callCallback(this.generate_internal(), cb);
     }
 
-    async generate_internal(inputElement) {
+    async generate_internal() {
         let model_info = all_model_info[this.model_name];
-        let model_size = model_info.model_size,
-            model_latent_dim = model_info.model_latent_dim,
-            draw_multiplier = model_info.draw_multiplier;
+        let model_latent_dim = model_info.model_latent_dim;
+            // model_size = model_info.model_size;
+            //draw_multiplier = model_info.draw_multiplier;
 
-        computing_prep_canvas(model_size * draw_multiplier);
+        // computing_prep_canvas(model_size * draw_multiplier);
 
         this.start_time = (new Date()).getTime();
-        let model = await this.model_promise;
-        let enlarged_image = await this.computing_generate_main(model, model_size, draw_multiplier, model_latent_dim, inputElement);
+        let model = await this.model;
+        let image_tensor = await this.compute(model, model_latent_dim);
         let end_ms = (new Date()).getTime();
         // return end_ms - this.start_time;
 
 
         //get the raw data from tensor
-        let raw = await tf.browser.toPixels(enlarged_image);
-        // console.log((enlarged_image.shape));
+        let raw = await tf.browser.toPixels(image_tensor);
+        // console.log((image_tensor.shape));
 
         //get the blob from raw
-        const [imgHeight, imgWidth] = enlarged_image.shape;
+        const [imgHeight, imgWidth] = image_tensor.shape;
         let blob = await rawToBlob(raw, imgWidth, imgHeight);
 
         //get the p5.Image object
@@ -165,8 +166,8 @@ class DCGAN{
             //let blob = await rawToBlob(raw, imgWidth, imgHeight);
             p5Image = await blobToP5Image(blob);
 
-            // const [imgHeight, imgWidth] = enlarged_image.shape;
-            // const data = enlarged_image.dataSync();
+            // const [imgHeight, imgWidth] = image_tensor.shape;
+            // const data = image_tensor.dataSync();
             // p5Image = createImage(imgWidth ,imgHeight);
             // p5Image.loadPixels();
             //
@@ -185,7 +186,7 @@ class DCGAN{
         let result =  {};
         result["blob"] = blob;
         result["raw"] = raw;
-        result["tensor"] = enlarged_image;
+        result["tensor"] = image_tensor;
 
         if(checkP5()){
             result["image"] = p5Image;
@@ -194,7 +195,7 @@ class DCGAN{
         return result;
     }
 
-    async computing_generate_main(model, size, draw_multiplier, latent_dim, inputElement) {
+    async compute(model, latent_dim) {
         const y = tf.tidy(() => {
             const z = tf.randomNormal([1, latent_dim]);
             const y = model.predict(z).squeeze().transpose([1, 2, 0]).div(tf.scalar(2)).add(tf.scalar(0.5));
@@ -215,7 +216,8 @@ let dcgan = new DCGAN("dcgan64", modelReady);
 
 
 function modelReady(){
-    dcgan.generate(canvas, (err, result) =>{
+    // dcgan.generate(canvas, (err, result) =>{
+        dcgan.generate( (err, result) =>{
         console.log(result);
 
         let img = document.createElement("IMG");
